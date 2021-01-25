@@ -22,27 +22,16 @@ namespace Cliente
         public Form1()
         {
             InitializeComponent();
+
+            button1.Tag = button1.Text;
+            button2.Tag = button2.Text;
+            button3.Tag = button3.Text;
+            button4.Tag = button4.Text;
         }
 
         private void Form1_Click(object sender, EventArgs e)
         {
             btn = (Button)sender;
-            if (btn.Name == "button1")
-            {
-                btn.Tag = button1.Text;
-            }
-            else if (btn.Name == "button2")
-            {
-                btn.Tag = button2.Text;
-            }
-            else if (btn.Name == "button3")
-            {
-                btn.Tag = button3.Text;
-            }
-            else
-            {
-                btn.Tag = button4.Text;
-            }
 
             IPEndPoint ie = new IPEndPoint(IPAddress.Parse(IP_SERVER), puerto);
 
@@ -54,35 +43,37 @@ namespace Cliente
             }
             catch (SocketException)
             {
+                MessageBox.Show("Error de conexión", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
 
-                Console.WriteLine("Error connection");
             }
+
             try
             {
 
-           
-            using (NetworkStream ns = new NetworkStream(server))
-            using (StreamReader sr = new StreamReader(ns))
-            using (StreamWriter sw = new StreamWriter(ns))
-            {
-                if (btn.Tag != null)
-                {
-                    sw.WriteLine(btn.Tag); //Le manda la opcion al servidor
-                    sw.Flush();
-                     msg = sr.ReadLine(); //Lee lo que le manda el server
-                    label1.Text = msg;
-                    //if (btn.Tag=="APAGAR")
-                    //{
-                    //    this.Close();
-                    //}
-                }
-            }
 
-            server.Close();
+                using (NetworkStream ns = new NetworkStream(server))
+                using (StreamReader sr = new StreamReader(ns))
+                using (StreamWriter sw = new StreamWriter(ns))
+                {
+                    if (btn.Tag != null)
+                    {
+                        sw.WriteLine(btn.Tag); //Le manda la opcion al servidor
+                        sw.Flush();
+                        msg = sr.ReadLine(); //Lee lo que le manda el server
+                        label1.Text = msg;
+                        //if (btn.Tag=="APAGAR")
+                        //{
+                        //    this.Close();
+                        //}
+                    }
+                }
+
+                server.Close();
             }
-            catch (IOException)
+            catch (IOException a)
             {
-                label1.Text = "Error, server off";
+                MessageBox.Show("Conexion fallida: " + a.Message);
             }
         }
 
@@ -97,9 +88,12 @@ namespace Cliente
                 case DialogResult.OK:
                     try
                     {
-
-                    puerto = Int32.Parse( f.textBoxPuerto.Text);
-                    IP_SERVER = f.textBoxIP.Text;
+                        puerto = Int32.Parse(f.textBoxPuerto.Text);
+                        if (puerto < 1024 || puerto > 65535)
+                        {
+                            throw new ArgumentOutOfRangeException();
+                        }
+                        IP_SERVER = f.textBoxIP.Text;
                     }
                     catch (FormatException)
                     {
@@ -110,11 +104,15 @@ namespace Cliente
                     {
                         MessageBox.Show("Numero demasiado largo", "Cambiar IP/Puerto", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
+                    catch (ArgumentOutOfRangeException)
+                    {
+                        MessageBox.Show("Puerto no valido (0-65535)", "Cambiar IP/Puerto", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                     break;
                 case DialogResult.Cancel:
                     MessageBox.Show("Cambio Cancelado", "Cambiar IP/Puerto", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                     break;
-            
+
             }
         }
     }
