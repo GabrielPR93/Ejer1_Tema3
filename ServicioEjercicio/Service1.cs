@@ -1,40 +1,70 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Ejer1_Tema3
+namespace ServicioEjercicio
 {
-    class Program
+    public partial class ServicioEjercicio : ServiceBase
     {
-        static void Main(string[] args)
+       
+        int puertoPorDefecto = 135; 
+        int puerto;
+        bool llave = true;
+        public ServicioEjercicio()
         {
-            int puerto = 31416;
-            int puertoSec = 50000;
-            bool flag = true;
-            IPEndPoint ie = new IPEndPoint(IPAddress.Any, puerto);
+            InitializeComponent();
+        }
+        public void escribeEvento(string mensaje)
+        {
+            string nombre = "Servidor Ejercicio";
+            string logDestino = "Application";
+            if (!EventLog.SourceExists(nombre))
+            {
+                EventLog.CreateEventSource(nombre, logDestino);
+            }
+            EventLog.WriteEntry(nombre, mensaje);
+        }
+        protected override void OnStart(string[] args)
+        {
+            string msg = "";
+            escribeEvento("Se inicio el Servidor Ejercicio");
+            
+            bool puertoArchivo = leeFichero();
 
+            IPEndPoint ie = new IPEndPoint(IPAddress.Any,puerto);
             using (Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
             {
 
-                try
-                {
-
-                s.Bind(ie);     //Enlace con el socket
-                s.Listen(3);    //cola de espera
-               
+                    try
+                    {
+                        s.Bind(ie);
+                        s.Listen(3);
+                        escribeEvento("Puerto: " + ie.Port);
+                    }
+                    catch (SocketException e) when (e.ErrorCode == (int)SocketError.AddressAlreadyInUse)
+                    {
+                        escribeEvento("Error puerto en uso");
+                    if (puertoArchivo)
+                    {
+                        puertoArchivo = false;
+                        llave = true;
+                        puerto = puertoPorDefecto;
+                    }
+                    else
+                    {
+                        llave = false;
+                    }
                 }
-                catch (SocketException e) when(e.ErrorCode == (int)SocketError.AddressAlreadyInUse)
-                {
-
-                    Console.WriteLine($"Port {puerto} in use");
-                    flag = false;
-                }
-                while (flag)
+                while (llave)
                 {
 
                     using (Socket sCliente = s.Accept())
@@ -46,12 +76,11 @@ namespace Ejer1_Tema3
                         using (StreamReader sr = new StreamReader(ns))
                         using (StreamWriter sw = new StreamWriter(ns))
                         {
-
-                            string msg = "";
-
+                     
                             try
                             {
                                 msg = sr.ReadLine();
+                              
                                 if (msg != null)
                                 {
                                     switch (msg)
@@ -74,7 +103,7 @@ namespace Ejer1_Tema3
                                         case "APAGAR":
                                             sw.WriteLine("server off");
                                             sw.Flush();
-                                            flag = false;
+                                            llave = false;
                                             break;
 
                                         default:
@@ -90,13 +119,39 @@ namespace Ejer1_Tema3
                             }
                         }
                         Console.WriteLine("finished connection:{0} at port {1}", ieCliente.Address, ieCliente.Port);
-
                     }
-
                 }
-              
             }
         }
+
+        protected override void OnStop()
+        {
+            escribeEvento("Se paro el Servidor Ejercicio");
+        }
+
+        protected bool leeFichero()
+        {
+            try
+            {
+                using (StreamReader sr=new StreamReader(Environment.GetEnvironmentVariable("PROGRAMDATA")+"//configuracion.txt"))
+                {
+                    string linea = sr.ReadLine();
+                    if (linea!=null)
+                    {
+                        puerto = Int32.Parse(linea);
+                        return true;
+                    }
+                }
+
+            }
+            catch (IOException)
+            {
+                escribeEvento("Error al leer el archivo");
+                puerto = puertoPorDefecto;
+            }
+            return false;
+        }
+
 
     }
 }
